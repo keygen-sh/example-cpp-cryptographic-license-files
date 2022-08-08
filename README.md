@@ -61,14 +61,12 @@ decrypted dataset:
 ```
 [INFO] Importing...
 [OK] License file successfully imported!
-enc=8VGeVPu...yLa9OOYufOMItzMNOdnbja+xP4RcOfRaAfHCbg==.IA+tstUP5VMxEf7F.4/SCCBbtGlsahUN1EyNylQ==
-sig=y+oR9env4E44tFZHc8tDpPZL8pCyrfpatrp/wDbNAfU31YklH4xeWeShMXlN8C4bYYkIZawp1aOtNVgbC9L0BA==
-alg=aes-256-gcm+ed25519
 [INFO] Verifying...
 [OK] License file successfully verified!
 [INFO] Decrypting...
 [OK] License file successfully decrypted!
 [INFO] Parsing...
+[OK] License successfully parsed!
 name=C++ Example License
 key=E1FBA2-5488D8-8AC81A-53157E-01939A-V3
 status=ACTIVE

@@ -88,7 +88,7 @@ std::time_t strtotime(const std::string s) {
 
   strptime(s.c_str(), "%FT%T%z", &t);
 
-  return mktime(&t);
+  return timegm(&t);
 }
 
 // license_file represents a Keygen license file resource.
@@ -338,8 +338,8 @@ license parse_license(const std::string dec)
     return lcs;
   }
 
-  auto ttl = meta.get("ttl").get<double>();
-  if (ttl > 0)
+  auto ttl = meta.get("ttl");
+  if (ttl.is<double>())
   {
     auto expires_at = strtotime(meta.get("expiry").to_str());
 
@@ -468,12 +468,12 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  std::cout << colorize("[OK]", 32) << " "
-            << "License file successfully imported!" << "\n"
-            << "enc=" << colorize(lic.enc, 34) << "\n"
-            << "sig=" << colorize(lic.sig, 34) << "\n"
-            << "alg=" << colorize(lic.alg, 34)
-            << std::endl;
+  // std::cout << colorize("[OK]", 32) << " "
+  //           << "License file successfully imported!" << "\n"
+  //           << "enc=" << colorize(lic.enc, 34) << "\n"
+  //           << "sig=" << colorize(lic.sig, 34) << "\n"
+  //           << "alg=" << colorize(lic.alg, 34)
+  //           << std::endl;
 
   std::cout << colorize("[INFO]", 34) << " "
               << "Verifying..."
@@ -519,6 +519,10 @@ int main(int argc, char* argv[])
 
       return 1;
     }
+
+    std::cout << colorize("[OK]", 32) << " "
+              << "License successfully parsed!"
+              << std::endl;
 
     std::cout << "name=" << colorize(lcs.name, 34) << "\n"
               << "key=" << colorize(lcs.key, 34) << "\n"
