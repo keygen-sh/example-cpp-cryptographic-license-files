@@ -468,12 +468,8 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  // std::cout << colorize("[OK]", 32) << " "
-  //           << "License file successfully imported!" << "\n"
-  //           << "enc=" << colorize(lic.enc, 34) << "\n"
-  //           << "sig=" << colorize(lic.sig, 34) << "\n"
-  //           << "alg=" << colorize(lic.alg, 34)
-  //           << std::endl;
+  std::cout << colorize("[OK]", 32) << " "
+            << "License file successfully imported!" << std::endl;
 
   std::cout << colorize("[INFO]", 34) << " "
               << "Verifying..."
@@ -524,13 +520,13 @@ int main(int argc, char* argv[])
               << "License successfully parsed!"
               << std::endl;
 
-    std::cout << "name=" << colorize(lcs.name, 34) << "\n"
-              << "key=" << colorize(lcs.key, 34) << "\n"
-              << "status=" << colorize(lcs.status, 34) << "\n"
-              << "last_validated_at=" << colorize(timetostr(lcs.last_validated_at), 34) << "\n"
-              << "expires_at=" << colorize(timetostr(lcs.expires_at), 34) << "\n"
-              << "created_at=" << colorize(timetostr(lcs.created_at), 34) << "\n"
-              << "updated_at=" << colorize(timetostr(lcs.updated_at), 34) << "\n"
+    std::cout << "name=" << colorize(lcs.name, 34) << std::endl
+              << "key=" << colorize(lcs.key, 34) << std::endl
+              << "status=" << colorize(lcs.status, 34) << std::endl
+              << "last_validated_at=" << colorize(timetostr(lcs.last_validated_at), 34) << std::endl
+              << "expires_at=" << colorize(timetostr(lcs.expires_at), 34) << std::endl
+              << "created_at=" << colorize(timetostr(lcs.created_at), 34) << std::endl
+              << "updated_at=" << colorize(timetostr(lcs.updated_at), 34) << std::endl
               << "entitlements=[";
 
     for (auto i = 0; i < lcs.entitlements.size(); i++)
@@ -544,11 +540,10 @@ int main(int argc, char* argv[])
       }
     }
 
-    std::cout << "]" << "\n"
-              << "product=" << colorize(lcs.product.id, 34) << "\n"
-              << "policy=" << colorize(lcs.policy.id, 34) << "\n"
-              << "user=" << colorize(lcs.user.id, 34)
-              << std::endl;
+    std::cout << "]" << std::endl
+              << "product=" << colorize(lcs.product.id, 34) << std::endl
+              << "policy=" << colorize(lcs.policy.id, 34) << std::endl
+              << "user=" << colorize(lcs.user.id, 34) << std::endl;
 
     return 0;
   }
