@@ -12,6 +12,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <ctime>
 
 // We don't need Ed25519 key generation
 #define ED25519_NO_SEED
@@ -72,6 +73,24 @@ inline std::string colorize(const std::string str, const int color_code)
   return stream.str();
 }
 
+// timetostr converts a time_t to an iso8601 formatted string.
+std::string timetostr(const std::time_t t) {
+  char buf[sizeof "2022-08-08T01:02:03Z"];
+
+  strftime(buf, sizeof buf, "%FT%TZ", gmtime(&t));
+
+  return std::string(buf);
+}
+
+// strtotime converts an iso8601 formatted string to a time_t.
+std::time_t strtotime(const std::string s) {
+  std::tm t {};
+
+  strptime(s.c_str(), "%FT%T%z", &t);
+
+  return mktime(&t);
+}
+
 // license_file represents a Keygen license file resource.
 struct license_file
 {
@@ -119,18 +138,20 @@ struct license
   std::string name;
   std::string key;
   std::string status;
-  std::string last_validated_at;
-  std::string expires_at;
-  std::string created_at;
-  std::string updated_at;
+  std::time_t last_validated_at;
+  std::time_t expires_at;
+  std::time_t created_at;
+  std::time_t updated_at;
   std::vector<entitlement> entitlements;
   product product;
   policy policy;
   user user;
 };
 
-template <typename T> bool is_empty(T data) {
-  unsigned char *mm = (unsigned char*) &data;
+// is_empty checks if the provided type is empty, used for structs.
+template <typename T>
+bool is_empty(T data) {
+  auto mm = (unsigned char*) &data;
   return (*mm == 0) && memcmp(mm, mm + 1, sizeof(T) - 1) == 0;
 }
 
@@ -303,6 +324,36 @@ license parse_license(const std::string dec)
     return lcs;
   }
 
+  auto meta = value.get("meta");
+  auto issued_at = strtotime(meta.get("issued").to_str());
+  auto now = time(0);
+
+  // Assert that current system time is not in the past.
+  if (now < issued_at)
+  {
+    std::cerr << colorize("[ERROR]", 31) << " "
+              << "System clock is desynced!"
+              << std::endl;
+
+    return lcs;
+  }
+
+  auto ttl = meta.get("ttl").get<double>();
+  if (ttl > 0)
+  {
+    auto expires_at = strtotime(meta.get("expiry").to_str());
+
+    // Assert that license file has not expired.
+    if (now > expires_at)
+    {
+      std::cerr << colorize("[ERROR]", 31) << " "
+                << "License file has expired!"
+                << std::endl;
+
+      return lcs;
+    }
+  }
+
   auto data = value.get("data");
   auto attrs = data.get("attributes");
 
@@ -310,10 +361,10 @@ license parse_license(const std::string dec)
   lcs.name = attrs.get("name").to_str();
   lcs.key = attrs.get("key").to_str();
   lcs.status = attrs.get("status").to_str();
-  lcs.last_validated_at = attrs.get("lastValidated").to_str();
-  lcs.expires_at = attrs.get("expiry").to_str();
-  lcs.created_at = attrs.get("created").to_str();
-  lcs.updated_at = attrs.get("updated").to_str();
+  lcs.last_validated_at = strtotime(attrs.get("lastValidated").to_str());
+  lcs.expires_at = strtotime(attrs.get("expiry").to_str());
+  lcs.created_at = strtotime(attrs.get("created").to_str());
+  lcs.updated_at = strtotime(attrs.get("updated").to_str());
 
   auto included = value.get("included");
   if (included.is<picojson::array>())
@@ -472,10 +523,10 @@ int main(int argc, char* argv[])
     std::cout << "name=" << colorize(lcs.name, 34) << "\n"
               << "key=" << colorize(lcs.key, 34) << "\n"
               << "status=" << colorize(lcs.status, 34) << "\n"
-              << "last_validated_at=" << colorize(lcs.last_validated_at, 34) << "\n"
-              << "expires_at=" << colorize(lcs.expires_at, 34) << "\n"
-              << "created_at=" << colorize(lcs.created_at, 34) << "\n"
-              << "updated_at=" << colorize(lcs.updated_at, 34) << "\n"
+              << "last_validated_at=" << colorize(timetostr(lcs.last_validated_at), 34) << "\n"
+              << "expires_at=" << colorize(timetostr(lcs.expires_at), 34) << "\n"
+              << "created_at=" << colorize(timetostr(lcs.created_at), 34) << "\n"
+              << "updated_at=" << colorize(timetostr(lcs.updated_at), 34) << "\n"
               << "entitlements=[";
 
     for (auto i = 0; i < lcs.entitlements.size(); i++)
