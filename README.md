@@ -33,7 +33,6 @@ Then compile the source using `g++`:
 ```bash
 g++ main.cpp -o bin.out \
   -std=c++17 \
-  -stdlib=libc++ \
   -lssl \
   -lcrypto \
   -I /usr/local/opt/openssl/include \
