@@ -143,9 +143,9 @@ struct license
   std::time_t created_at;
   std::time_t updated_at;
   std::vector<entitlement> entitlements;
-  product product;
-  policy policy;
-  user user;
+  struct product product;
+  struct policy policy;
+  struct user user;
 };
 
 // is_empty checks if the provided type is empty, used for structs.
