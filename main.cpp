@@ -91,9 +91,17 @@ std::time_t strtotime(const std::string s) {
   return timegm(&t);
 }
 
+// file_type represents a Keygen license file type - license or machine
+enum file_type
+{
+  license_type,
+  machine_type
+};
+
 // license_file represents a Keygen license file resource.
 struct license_file
 {
+  file_type typ;
   std::string enc;
   std::string sig;
   std::string alg;
@@ -148,6 +156,18 @@ struct license
   struct user user;
 };
 
+// machine represents a Keygen machine resource.
+struct machine
+{
+  std::string id;
+  std::string name;
+  std::vector<entitlement> entitlements;
+  struct license lcs;
+  struct product product;
+  struct policy policy;
+  struct user user;
+};
+
 // is_empty checks if the provided type is empty, used for structs.
 template <typename T>
 bool is_empty(T data) {
@@ -185,6 +205,13 @@ license_file import_license_file(const std::string path)
   std::ifstream f(path);
   buf << f.rdbuf();
   auto enc = buf.str();
+
+  std::string machine_prefix = "-----BEGIN MACHINE FILE-----\n";
+  lic.typ = enc.find(machine_prefix) == 0 ? machine_type : license_type;
+  std::cout << colorize("[INFO]", 34) << " "
+              << "File Type is "
+              << (lic.typ == machine_type ?  "machine" : "license")
+              << std::endl;
 
   // Decode contents
   auto dec = decode_license_file(enc);
@@ -230,7 +257,7 @@ bool verify_license_file(const std::string pubkey, license_file lic)
   }
 
   // Convert signing data into bytes
-  auto data = "license/" + lic.enc;
+  auto data = (lic.typ == machine_type ? "machine/" : "license/") + lic.enc;
   auto data_bytes = reinterpret_cast<const unsigned char*>(data.c_str());
   auto data_size = data.size();
 
@@ -420,6 +447,127 @@ license parse_license(const std::string dec)
   return lcs;
 }
 
+// parse_machine parses a JSON string into a machine struct.
+machine parse_machine(const std::string dec)
+{
+  picojson::value value;
+  machine mach {};
+
+  auto err = picojson::parse(value, dec);
+  if (!err.empty())
+  {
+    std::cerr << colorize("[ERROR]", 31) << " "
+              << "Failed to parse machine: " << err
+              << std::endl;
+
+    return mach;
+  }
+
+  auto meta = value.get("meta");
+  auto issued_at = strtotime(meta.get("issued").to_str());
+  auto now = time(0);
+
+  // Assert that current system time is not in the past.
+  if (now < issued_at)
+  {
+    std::cerr << colorize("[ERROR]", 31) << " "
+              << "System clock is desynced!"
+              << std::endl;
+
+    return mach;
+  }
+
+  auto ttl = meta.get("ttl");
+  if (ttl.is<double>())
+  {
+    auto expires_at = strtotime(meta.get("expiry").to_str());
+
+    // Assert that license file has not expired.
+    if (now > expires_at)
+    {
+      std::cerr << colorize("[ERROR]", 31) << " "
+                << "License file has expired!"
+                << std::endl;
+
+      return mach;
+    }
+  }
+
+  auto data = value.get("data");
+  auto attrs = data.get("attributes");
+
+  mach.id = data.get("id").to_str();
+  mach.name = attrs.get("name").to_str();
+
+  auto included = value.get("included");
+  if (included.is<picojson::array>())
+  {
+    for (const auto &incl: included.get<picojson::array>())
+    {
+      auto type = incl.get("type").to_str();
+      auto id = incl.get("id").to_str();
+      auto attrs = incl.get("attributes");
+
+      if (type == "entitlements")
+      {
+        entitlement entl {id};
+
+        entl.name = attrs.get("name").to_str();
+        entl.code = attrs.get("code").to_str();
+
+        mach.entitlements.push_back(entl);
+      }
+
+      if (type == "licenses")
+      {
+        license lcs {id};
+
+        lcs.name = attrs.get("name").to_str();
+        lcs.key = attrs.get("key").to_str();
+        lcs.status = attrs.get("status").to_str();
+        lcs.last_validated_at = strtotime(attrs.get("lastValidated").to_str());
+        lcs.expires_at = strtotime(attrs.get("expiry").to_str());
+        lcs.created_at = strtotime(attrs.get("created").to_str());
+        lcs.updated_at = strtotime(attrs.get("updated").to_str());
+
+        mach.lcs = lcs;
+      }
+
+      if (type == "products")
+      {
+        product prod {id};
+
+        prod.name = attrs.get("name").to_str();
+
+        mach.product = prod;
+      }
+
+      if (type == "policies")
+      {
+        policy pol {id};
+
+        pol.name = attrs.get("name").to_str();
+
+        mach.policy = pol;
+      }
+
+      if (type == "users")
+      {
+        user usr {id};
+
+        usr.first_name = attrs.get("firstName").to_str();
+        usr.last_name = attrs.get("lastName").to_str();
+        usr.email = attrs.get("email").to_str();
+        usr.status = attrs.get("status").to_str();
+
+        mach.user = usr;
+      }
+    }
+  }
+
+  return mach;
+}
+
 // main runs the example program.
 int main(int argc, char* argv[])
 {
@@ -487,6 +635,19 @@ int main(int argc, char* argv[])
               << "Decrypting..."
               << std::endl;
 
+    if (lic.typ == machine_type)
+    {
+      if (!getenv("KEYGEN_MACHINE_FINGERPRINT"))
+      {
+        std::cerr << colorize("[ERROR]", 31) << " "
+                  << "Environment variable KEYGEN_MACHINE_FINGERPRINT is missing"
+                  << std::endl;
+
+        return 1;
+      }
+      secret += getenv("KEYGEN_MACHINE_FINGERPRINT");
+    }
+
     // Decrypt the license file
     auto dec = decrypt_license_file(secret, lic);
     if (dec.empty() || dec.at(0) != '{')
@@ -506,44 +667,94 @@ int main(int argc, char* argv[])
               << "Parsing..."
               << std::endl;
 
-    auto lcs = parse_license(dec);
-    if (is_empty<license>(lcs))
+    if (lic.typ == license_type)
     {
-      std::cerr << colorize("[ERROR]", 31) << " "
-                << "Failed to parse license!"
+      auto lcs = parse_license(dec);
+      if (is_empty<license>(lcs))
+      {
+        std::cerr << colorize("[ERROR]", 31) << " "
+                  << "Failed to parse license!"
+                  << std::endl;
+
+        return 1;
+      }
+
+      std::cout << colorize("[OK]", 32) << " "
+                << "License successfully parsed!"
                 << std::endl;
 
-      return 1;
-    }
+      std::cout << "type=license"
+                << std::endl;
+      std::cout << "name=" << colorize(lcs.name, 34) << std::endl
+                << "key=" << colorize(lcs.key, 34) << std::endl
+                << "status=" << colorize(lcs.status, 34) << std::endl
+                << "last_validated_at=" << colorize(timetostr(lcs.last_validated_at), 34) << std::endl
+                << "expires_at=" << colorize(timetostr(lcs.expires_at), 34) << std::endl
+                << "created_at=" << colorize(timetostr(lcs.created_at), 34) << std::endl
+                << "updated_at=" << colorize(timetostr(lcs.updated_at), 34) << std::endl
+                << "entitlements=[";
 
-    std::cout << colorize("[OK]", 32) << " "
-              << "License successfully parsed!"
-              << std::endl;
-
-    std::cout << "name=" << colorize(lcs.name, 34) << std::endl
-              << "key=" << colorize(lcs.key, 34) << std::endl
-              << "status=" << colorize(lcs.status, 34) << std::endl
-              << "last_validated_at=" << colorize(timetostr(lcs.last_validated_at), 34) << std::endl
-              << "expires_at=" << colorize(timetostr(lcs.expires_at), 34) << std::endl
-              << "created_at=" << colorize(timetostr(lcs.created_at), 34) << std::endl
-              << "updated_at=" << colorize(timetostr(lcs.updated_at), 34) << std::endl
-              << "entitlements=[";
-
-    for (auto i = 0; i < lcs.entitlements.size(); i++)
-    {
-      auto entitlement = lcs.entitlements.at(i);
-      std::cout << colorize(entitlement.code, 34);
-
-      if (i < lcs.entitlements.size() - 1)
+      for (auto i = 0; i < lcs.entitlements.size(); i++)
       {
-        std::cout << ",";
-      }
-    }
+        auto entitlement = lcs.entitlements.at(i);
+        std::cout << colorize(entitlement.code, 34);
 
-    std::cout << "]" << std::endl
-              << "product=" << colorize(lcs.product.id, 34) << std::endl
-              << "policy=" << colorize(lcs.policy.id, 34) << std::endl
-              << "user=" << colorize(lcs.user.id, 34) << std::endl;
+        if (i < lcs.entitlements.size() - 1)
+        {
+          std::cout << ",";
+        }
+      }
+
+      std::cout << "]" << std::endl
+                << "product=" << colorize(lcs.product.id, 34) << std::endl
+                << "policy=" << colorize(lcs.policy.id, 34) << std::endl
+                << "user=" << colorize(lcs.user.id, 34) << std::endl;
+    }
+    else if (lic.typ == machine_type)
+    {
+      auto mach = parse_machine(dec);
+      if (is_empty<machine>(mach))
+      {
+        std::cerr << colorize("[ERROR]", 31) << " "
+                  << "Failed to parse license!"
+                  << std::endl;
+
+        return 1;
+      }
+
+      std::cout << colorize("[OK]", 32) << " "
+                << "License successfully parsed!"
+                << std::endl;
+
+      std::cout << "type=machine"
+                << std::endl;
+      std::cout << "name=" << colorize(mach.name, 34) << std::endl;
+
+      std::cout << "lic.name=" << colorize(mach.lcs.name, 34) << std::endl
+                << "lic.key=" << colorize(mach.lcs.key, 34) << std::endl
+                << "lic.status=" << colorize(mach.lcs.status, 34) << std::endl
+                << "lic.last_validated_at=" << colorize(timetostr(mach.lcs.last_validated_at), 34) << std::endl
+                << "lic.expires_at=" << colorize(timetostr(mach.lcs.expires_at), 34) << std::endl
+                << "lic.created_at=" << colorize(timetostr(mach.lcs.created_at), 34) << std::endl
+                << "lic.updated_at=" << colorize(timetostr(mach.lcs.updated_at), 34) << std::endl
+                << "lic.entitlements=[";
+
+      for (auto i = 0; i < mach.entitlements.size(); i++)
+      {
+        auto entitlement = mach.entitlements.at(i);
+        std::cout << colorize(entitlement.code, 34);
+
+        if (i < mach.entitlements.size() - 1)
+        {
+          std::cout << ",";
+        }
+      }
+
+      std::cout << "]" << std::endl
+                << "product=" << colorize(mach.product.id, 34) << std::endl
+                << "policy=" << colorize(mach.policy.id, 34) << std::endl
+                << "user=" << colorize(mach.user.id, 34) << std::endl;
+    }
 
     return 0;
   }
