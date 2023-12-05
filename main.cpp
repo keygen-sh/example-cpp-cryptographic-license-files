@@ -175,6 +175,21 @@ bool is_empty(T data) {
   return (*mm == 0) && memcmp(mm, mm + 1, sizeof(T) - 1) == 0;
 }
 
+template <>
+bool is_empty(license_file data) {
+  return data.enc.empty();
+}
+
+template <>
+bool is_empty(license data) {
+  return data.id.empty();
+}
+
+template <>
+bool is_empty(machine data) {
+  return data.id.empty();
+}
+
 // decode_license_file decodes a license file certificate into a JSON string.
 std::string decode_license_file(const std::string cert)
 {
