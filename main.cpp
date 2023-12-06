@@ -267,7 +267,6 @@ std::string decrypt_license_file(const std::string key, license_file lic)
 
   // Convert to bytes
   int ciphertext_size;
-  int plaintext_size;
   int iv_size;
   int tag_size;
   int aes_size;
