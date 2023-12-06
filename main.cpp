@@ -221,6 +221,15 @@ license_file import_license_file(const std::string path)
   buf << f.rdbuf();
   auto enc = buf.str();
 
+  if (enc.size() <= 54) // size of license file prefix+suffix
+  {
+    std::cerr << colorize("[ERROR]", 31) << " "
+        << "Non-existent or invalid license file "
+        << path
+        << std::endl;
+    return lic;
+  }
+
   std::string machine_prefix = "-----BEGIN MACHINE FILE-----\n";
   lic.typ = enc.find(machine_prefix) == 0 ? machine_type : license_type;
   std::cout << colorize("[INFO]", 34) << " "
