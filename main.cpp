@@ -170,7 +170,7 @@ std::string decode_license_file(const std::string cert)
 
   // Decode
   auto dec = unbase64(enc.c_str(), enc.size(), &size);
-  std::string str(reinterpret_cast<char const*>(dec));
+  std::string str(dec, dec + size);
 
   return str;
 }
@@ -303,7 +303,7 @@ std::string decrypt_license_file(const std::string key, license_file lic)
   EVP_CIPHER_CTX_free(ctx);
 
   // Convert plaintext to string
-  std::string plaintext(reinterpret_cast<char const*>(plaintext_bytes));
+  std::string plaintext(plaintext_bytes, plaintext_bytes + ciphertext_size);
 
   return plaintext;
 }
