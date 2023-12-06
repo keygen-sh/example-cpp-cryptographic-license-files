@@ -304,6 +304,7 @@ std::string decrypt_license_file(const std::string key, license_file lic)
 
   // Convert plaintext to string
   std::string plaintext(plaintext_bytes, plaintext_bytes + ciphertext_size);
+  delete[] plaintext_bytes;
 
   return plaintext;
 }
