@@ -15,6 +15,9 @@ export KEYGEN_PUBLIC_KEY="e8601e48b69383ba520245fd07971e983d06d22c4257cfd8230460
 
 # A license key.
 export KEYGEN_LICENSE_KEY="E1FBA2-5488D8-8AC81A-53157E-01939A-V3"
+
+# A machine fingerprint (ONLY required for machine license files)
+export KEYGEN_MACHINE_FINGERPRINT="88f5e16d235431f29ed16ceef1835cce2ff82e06df91644dd"
 ```
 
 You can either run each line above within your terminal session before
@@ -51,6 +54,7 @@ Alternatively, you can prefix the below command with env variables, e.g.:
 ```bash
 KEYGEN_PUBLIC_KEY="e8601e48b69383ba520245fd07971e983d06d22c4257cfd82304601479cee788" \
   KEYGEN_LICENSE_KEY="E1FBA2-5488D8-8AC81A-53157E-01939A-V3" \
+  KEYGEN_MACHINE_FINGERPRINT="88f5e16d235431f29ed16ceef1835cce2ff82e06df91644dd" \
   ./bin.out examples/license.lic
 ```
 
@@ -81,7 +85,8 @@ user=2068992b-f98f-4efc-95fd-687dbd0c868c
 
 If the license file fails to decrypt, ensure that you're providing the correct
 license key via `KEYGEN_LICENSE_KEY`. License files are encrypted with their
-license's key, so an incorrect license key will fail to decrypt.
+license's key, so an incorrect license key will fail to decrypt. Machine
+license files are encrypted with both license key and machine fingerprint.
 
 ## Questions?
 
