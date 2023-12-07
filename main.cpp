@@ -74,7 +74,8 @@ inline std::string colorize(const std::string str, const int color_code)
 }
 
 // timetostr converts a time_t to an iso8601 formatted string.
-std::string timetostr(const std::time_t t) {
+std::string timetostr(const std::time_t t)
+{
   char buf[sizeof "2022-08-08T01:02:03Z"];
 
   strftime(buf, sizeof buf, "%FT%TZ", gmtime(&t));
@@ -83,7 +84,8 @@ std::string timetostr(const std::time_t t) {
 }
 
 // strtotime converts an iso8601 formatted string to a time_t.
-std::time_t strtotime(const std::string s) {
+std::time_t strtotime(const std::string s)
+{
   std::tm t {};
 
   strptime(s.c_str(), "%FT%T%z", &t);
@@ -148,13 +150,6 @@ struct license
   struct user user;
 };
 
-// is_empty checks if the provided type is empty, used for structs.
-template <typename T>
-bool is_empty(T data) {
-  auto mm = (unsigned char*) &data;
-  return (*mm == 0) && memcmp(mm, mm + 1, sizeof(T) - 1) == 0;
-}
-
 // decode_license_file decodes a license file certificate into a JSON string.
 std::string decode_license_file(const std::string cert)
 {
@@ -185,6 +180,14 @@ license_file import_license_file(const std::string path)
   std::ifstream f(path);
   buf << f.rdbuf();
   auto enc = buf.str();
+  if (enc.empty())
+  {
+    std::cerr << colorize("[ERROR]", 31) << " "
+              << "Failed to decode license file"
+              << std::endl;
+
+    return lic;
+  }
 
   // Decode contents
   auto dec = decode_license_file(enc);
@@ -459,7 +462,7 @@ int main(int argc, char* argv[])
               << std::endl;
 
   auto lic = import_license_file(path);
-  if (is_empty<license_file>(lic))
+  if (lic.enc.empty())
   {
     std::cerr << colorize("[ERROR]", 31) << " "
               << "Path '" << path << "' is not a valid license file"
@@ -507,7 +510,7 @@ int main(int argc, char* argv[])
               << std::endl;
 
     auto lcs = parse_license(dec);
-    if (is_empty<license>(lcs))
+    if (lcs.id.empty())
     {
       std::cerr << colorize("[ERROR]", 31) << " "
                 << "Failed to parse license!"
