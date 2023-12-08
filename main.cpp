@@ -183,7 +183,7 @@ license_file import_license_file(const std::string path)
   if (enc.empty())
   {
     std::cerr << colorize("[ERROR]", 31) << " "
-              << "Failed to decode license file"
+              << "Failed to read license file"
               << std::endl;
 
     return lic;
